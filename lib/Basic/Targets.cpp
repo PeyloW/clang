@@ -277,6 +277,7 @@ public:
       break;
     case llvm::Triple::mips:
     case llvm::Triple::mipsel:
+    case llvm::Triple::m68k:
     case llvm::Triple::ppc:
     case llvm::Triple::ppc64:
     case llvm::Triple::ppc64le:
@@ -413,6 +414,7 @@ public:
           break;
         case llvm::Triple::mips64:
         case llvm::Triple::mips64el:
+        case llvm::Triple::m68k:
         case llvm::Triple::ppc:
         case llvm::Triple::sparcv9:
           this->MCountName = "_mcount";
@@ -3194,6 +3196,7 @@ public:
       break;
     case llvm::Triple::mips:
     case llvm::Triple::mipsel:
+    case llvm::Triple::m68k:
     case llvm::Triple::ppc:
     case llvm::Triple::ppc64:
     case llvm::Triple::ppc64le:
@@ -5295,6 +5298,82 @@ public:
 } // end anonymous namespace.
 
 namespace {
+class M68kTargetInfo : public TargetInfo {
+public:
+  M68kTargetInfo(const llvm::Triple &Triple) : TargetInfo(Triple) {
+    BigEndian = true;
+    this->UserLabelPrefix = "";
+    this->IntWidth = 32;   // Shold be controlled with -mshort as per GCC.
+    this->IntAlign = 32;
+    this->LongAlign = 32;
+    this->LongWidth = 32;
+    this->PointerAlign = 32;
+    this->PointerWidth = 32;
+    this->IntMaxType = TargetInfo::SignedLong;
+    this->UIntMaxType = TargetInfo::UnsignedLong;
+    this->Int64Type = TargetInfo::SignedLongLong;
+    this->DoubleAlign = 32;
+    this->LongDoubleWidth = 80;
+    this->LongDoubleAlign = 32;
+    this->SizeType = TargetInfo::UnsignedInt;
+    this->PtrDiffType = TargetInfo::SignedInt;
+    this->IntPtrType = TargetInfo::SignedInt;
+    this->RegParmMax = 0; // Disallow regparm
+    DescriptionString = "E-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:32-"
+    "f32:32:32-f64:64:32-p:32:32:32";
+  }
+  
+  void getDefaultFeatures(llvm::StringMap<bool> &Features) const {
+  }
+  virtual void getArchDefines(const LangOptions &Opts,
+                              MacroBuilder &Builder) const {
+    Builder.defineMacro("__m68k__");
+    Builder.defineMacro("__m68000__");
+  }
+  virtual void getTargetDefines(const LangOptions &Opts,
+                                MacroBuilder &Builder) const {
+    Builder.defineMacro("__BIG_ENDIAN__");
+    getArchDefines(Opts, Builder);
+  }
+  virtual bool hasFeature(StringRef Feature) const {
+    return Feature == "m68k";
+  }
+  virtual void getTargetBuiltins(const Builtin::Info *&Records,
+                                 unsigned &NumRecords) const {
+  }
+  virtual BuiltinVaListKind getBuiltinVaListKind() const {
+    return TargetInfo::CharPtrBuiltinVaList;
+  }
+  virtual void getGCCRegNames(const char * const *&Names,
+                              unsigned &NumNames) const {
+    static const char * const GCCRegNames[] = {
+      "d0",   "d1",   "d2",   "d3",   "d4",   "d5",   "d6",   "d7",
+      "a0",   "a1",   "a2",   "a3",   "a4",   "a5",   "a6",   "sp",
+      "fp0",  "fp1",  "fp2",  "fp3",  "fp4",  "fp5",  "fp6",  "fp7"
+    };
+    Names = GCCRegNames;
+    NumNames = llvm::array_lengthof(GCCRegNames);
+  }
+  virtual void getGCCRegAliases(const GCCRegAlias *&Aliases,
+                                unsigned &NumAliases) const {
+    const TargetInfo::GCCRegAlias GCCRegAliases[] = {
+      { { "a7" }, "sp" }
+    };
+    Aliases = GCCRegAliases;
+    NumAliases = llvm::array_lengthof(GCCRegAliases);
+  }
+  virtual bool validateAsmConstraint(const char *&Name,
+                                     TargetInfo::ConstraintInfo &Info) const {
+    return false;
+  }
+  
+  virtual const char *getClobbers() const {
+    return "";
+  }
+};
+}
+
+namespace {
 class PNaClTargetInfo : public TargetInfo {
 public:
   PNaClTargetInfo(const llvm::Triple &Triple) : TargetInfo(Triple) {
@@ -5631,6 +5710,20 @@ static TargetInfo *AllocateTarget(const llvm::Triple &Triple) {
       return new OpenBSDTargetInfo<Mips64ELTargetInfo>(Triple);
     default:
       return new Mips64ELTargetInfo(Triple);
+    }
+
+  case llvm::Triple::m68k:
+    switch (os) {
+    case llvm::Triple::Linux:
+      return new LinuxTargetInfo<M68kTargetInfo>(Triple);
+    case llvm::Triple::RTEMS:
+      return new RTEMSTargetInfo<M68kTargetInfo>(Triple);
+    case llvm::Triple::FreeBSD:
+      return new FreeBSDTargetInfo<M68kTargetInfo>(Triple);
+    case llvm::Triple::NetBSD:
+      return new NetBSDTargetInfo<M68kTargetInfo>(Triple);
+    default:
+      return new M68kTargetInfo(Triple);
     }
 
   case llvm::Triple::le32:
