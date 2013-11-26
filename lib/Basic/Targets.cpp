@@ -5319,8 +5319,7 @@ public:
     this->PtrDiffType = TargetInfo::SignedInt;
     this->IntPtrType = TargetInfo::SignedInt;
     this->RegParmMax = 0; // Disallow regparm
-    DescriptionString = "E-i1:8:8-i8:8:8-i16:16:16-i32:32:32-i64:64:32-"
-    "f32:32:32-f64:64:32-p:32:32:32";
+    DescriptionString = "E-p:32:32-i8:8:8-i16:16:16-i32:16:16";
   }
   
   void getDefaultFeatures(llvm::StringMap<bool> &Features) const {
